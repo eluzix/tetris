@@ -61,12 +61,7 @@ pub fn main() !void {
     _ = try posix.fcntl(in, posix.F.SETFL, origFlags | @as(u32, @bitCast(posix.O{ .NONBLOCK = true })));
     defer _ = posix.fcntl(in, posix.F.SETFL, origFlags) catch {};
 
-    state.currentPiece = .{
-        .shape = .L,
-        .rotate = 0,
-        .x = 3,
-        .y = 1,
-    };
+    state.currentPiece = tetris.nextShape(&state);
 
     const targetFPS = 60;
     const targetFrameTime = std.time.ns_per_s / targetFPS;
