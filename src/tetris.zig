@@ -69,10 +69,12 @@ pub const Piece = struct {
     }
 };
 
-pub const Keys = enum { Rotate, Left, Right, Down, Quite, NOP };
+pub const Keys = enum { Rotate, Left, Right, Down, Quite, NOP, TOGGLE_DEBUG };
 
 pub const GameState = struct {
     running: bool,
+    debug: bool,
+    currentFps: usize,
     moveOnTick: bool,
     nextKey: Keys,
     width: usize,
@@ -100,6 +102,8 @@ pub const GameState = struct {
 
         const gs = GameState{
             .running = true,
+            .debug = false,
+            .currentFps = 0,
             .moveOnTick = false,
             .nextKey = Keys.NOP,
             .width = width,
@@ -220,6 +224,7 @@ fn handleInputAndTick(state: *GameState) [2]u8 {
 
         .Rotate => state.currentPiece.rotateRight(),
         .Quite => state.running = false,
+        .TOGGLE_DEBUG => state.debug = !state.debug,
     }
 
     state.moveOnTick = false;
@@ -288,7 +293,11 @@ pub fn updateAndDrawGame(f: fs.File, state: *GameState) !void {
         copyRenderBufferToBoard(state);
         state.currentPiece = nextShape(state);
     }
-    try render(f, state.renderbuffer);
+    // todo uzix - should we use a writer ?
+    render(f, state.renderbuffer);
+    if (state.debug) {
+        renderDebugData(f, state);
+    }
 }
 
 fn translatePiceForRender(piece: Piece) [PIECE_SIZE][PIECE_SIZE]u8 {
@@ -316,14 +325,24 @@ fn writeOrWait(f: fs.File, bytes: []const u8) void {
     };
 }
 
-fn render(f: fs.File, board: [][]u8) !void {
+fn render(f: fs.File, board: [][]u8) void {
     writeOrWait(f, CSI ++ "2J " ++ ESC ++ "H");
     writeOrWait(f, CSI ++ "?25l\r");
+    writeOrWait(f, CSI ++ "5;1H");
     for (board) |*row| {
         writeOrWait(f, row.*);
         writeOrWait(f, "\n\r");
     }
-    writeOrWait(f, CSI ++ "?25l\r");
+    // writeOrWait(f, CSI ++ "?25l\r");
+}
+
+fn renderDebugData(f: fs.File, state: *GameState) void {
+    writeOrWait(f, CSI ++ "1;1H");
+    var buf: [25]u8 = undefined;
+    const out = std.fmt.bufPrint(&buf, "Frame count: {d}\n", .{state.currentFps}) catch {
+        return;
+    };
+    writeOrWait(f, out);
 }
 
 test "Rotatation" {

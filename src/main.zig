@@ -23,6 +23,7 @@ fn readKey(buf: []u8) tetris.Keys {
             ' ' => tetris.Keys.Rotate,
             27 => tetris.Keys.Quite,
             'q' => tetris.Keys.Quite,
+            'd' => tetris.Keys.TOGGLE_DEBUG,
             else => tetris.Keys.NOP,
         };
     } else if (n > 2 and std.mem.eql(u8, buf[0..2], &[_]u8{ 27, 91 })) {
@@ -44,6 +45,7 @@ pub fn main() !void {
 
     const out = fs.File.stdout();
     var state = try tetris.GameState.Init(alloc, 26, 30);
+    state.debug = true;
     defer state.deinit(alloc);
 
     const in = posix.STDIN_FILENO;
@@ -91,6 +93,7 @@ pub fn main() !void {
         const now = timer.read();
         if (now - lastTick >= std.time.ns_per_s) {
             // std.debug.print("FPS: {}\n", .{frameCount});
+            state.currentFps = frameCount;
             frameCount = 0;
             lastTick = now;
             state.moveOnTick = true;
