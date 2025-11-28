@@ -80,7 +80,7 @@ pub const GameState = struct {
     width: usize,
     height: usize,
     currentPiece: Piece,
-    rnd: std.Random,
+    rnd: std.Random.DefaultPrng,
     board: [][]u8,
     renderbuffer: [][]u8,
 
@@ -98,7 +98,7 @@ pub const GameState = struct {
         }
 
         const seed: u64 = @intCast(std.time.timestamp());
-        var prng = std.Random.DefaultPrng.init(seed);
+        // var prng = std.Random.DefaultPrng.init(seed);
 
         const gs = GameState{
             .running = true,
@@ -109,7 +109,7 @@ pub const GameState = struct {
             .width = width,
             .height = height,
             .currentPiece = undefined,
-            .rnd = prng.random(),
+            .rnd = std.Random.DefaultPrng.init(seed),
             .board = ar,
             .renderbuffer = ar2,
         };
@@ -148,7 +148,7 @@ fn copyRenderBufferToBoard(state: *GameState) void {
 
 pub fn nextShape(state: *GameState) Piece {
     const tags = std.meta.tags(Shape);
-    const s = tags[state.rnd.intRangeLessThan(usize, 0, tags.len)];
+    const s = tags[state.rnd.random().intRangeLessThan(usize, 0, tags.len)];
 
     return Piece{
         .shape = s,
@@ -295,6 +295,7 @@ pub fn updateAndDrawGame(f: fs.File, state: *GameState) !void {
     }
     // todo uzix - should we use a writer ?
     render(f, state.renderbuffer);
+
     if (state.debug) {
         renderDebugData(f, state);
     }
