@@ -13,15 +13,12 @@ const Shape = enum { I, L, S, O, T };
 
 const Rotate = usize;
 
+const RIGHT_BORDER_MASK = 0b0001000100010001;
+
 const MASKS = [_][4]u16{
-    [_]u16{
-        0b0110011001100110,
-        0b0000111111110000,
-        0b0110011001100110,
-        0b0000111111110000,
-    },
+    [_]u16{ 0b0110011001100110, 0b0000111111110000, 0b0110011001100110, 0b0000111111110000 },
     [_]u16{ 0b1000100010001110, 0b1111100010000000, 0b0111000100010001, 0b0001000100010111 },
-    [_]u16{ 0b111111000110111, 0b1011111111011001, 0b1111011000111111, 0b1001101111111101 },
+    [_]u16{ 0b1111010000101111, 0b1001101111011001, 0b1111001001001111, 0b1001110110111001 },
     [_]u16{ 0b0110100110010110, 0b0110100110010110, 0b0110100110010110, 0b0110100110010110 },
     [_]u16{ 0b1110010001000100, 0b0001111100010000, 0b0010001000100111, 0b0000100011111000 },
 };
@@ -51,6 +48,7 @@ pub const Piece = struct {
     x: u8,
     y: u8,
     stuck: bool,
+    width: u4 = PIECE_SIZE,
 
     const Self = @This();
 
@@ -62,6 +60,16 @@ pub const Piece = struct {
         }
 
         self.*.rotate = ci;
+        self.setWidth();
+    }
+
+    pub fn setWidth(self: *Self) void {
+        const msk = self.mask() & RIGHT_BORDER_MASK;
+        if (msk == 0) {
+            self.*.width = PIECE_SIZE - 1;
+        } else {
+            self.*.width = PIECE_SIZE;
+        }
     }
 
     fn mask(self: Self) u16 {
@@ -159,48 +167,11 @@ pub fn nextShape(state: *GameState) Piece {
     };
 }
 
-// fn updateMovement(state: *GameState, currentPiceHeight: usize) void {
-//     var baseY = state.currentPiece.y;
-//
-//     if (state.moveOnTick and baseY + currentPiceHeight < state.height) {
-//         baseY += 1;
-//     }
-//
-//     switch (state.nextKey) {
-//         .NOP => {},
-//         .Left => {
-//             if (state.currentPiece.x > 0) {
-//                 state.currentPiece.x -= 1;
-//             }
-//         },
-//         .Right => {
-//             if (state.currentPiece.x + PIECE_SIZE < state.width) {
-//                 state.currentPiece.x += 1;
-//             }
-//         },
-//         .Down => {
-//             if (baseY + PIECE_SIZE < state.height) {
-//                 baseY += 1;
-//             }
-//         },
-//
-//         .Rotate => state.currentPiece.rotateRight(),
-//         .Quite => state.running = false,
-//     }
-//
-//     state.currentPiece.y = baseY;
-//
-//     if (state.currentPiece.y + PIECE_SIZE == state.height) {
-//         state.currentPiece.stuck = true;
-//         copyRenderBufferToBoard(state);
-//     }
-//     state.moveOnTick = false;
-// }
-
 fn handleInputAndTick(state: *GameState) [2]u8 {
     var ret = [2]u8{ state.currentPiece.x, state.currentPiece.y };
+    const pw = state.currentPiece.width;
 
-    if (state.moveOnTick and ret[1] < state.height) {
+    if (state.moveOnTick and ret[1] + pw < state.height) {
         ret[1] += 1;
     }
 
@@ -212,12 +183,12 @@ fn handleInputAndTick(state: *GameState) [2]u8 {
             }
         },
         .Right => {
-            if (ret[0] < state.width) {
+            if (ret[0] + pw < state.width) {
                 ret[0] += 1;
             }
         },
         .Down => {
-            if (ret[1] < state.height) {
+            if (ret[1] + PIECE_SIZE < state.height) {
                 ret[1] += 1;
             }
         },
@@ -258,16 +229,17 @@ pub fn updateAndDrawGame(f: fs.File, state: *GameState) !void {
             continue;
         }
 
-        var targetRow = board[baseY + row][baseX .. baseX + 4];
-        for (0..PIECE_SIZE) |y| {
-            const column = PIECE_SIZE - 1 - y;
+        const pw = state.currentPiece.width;
+        var targetRow = board[baseY + row][baseX .. baseX + pw];
+        for (0..pw) |y| {
+            const column = pw - 1 - y;
 
             if (targetRow[column] == FULL and shape[row][column] == FULL) {
                 // hit rock bottom
                 state.currentPiece.stuck = true;
 
                 for (0..pieceHeight) |nrow| {
-                    targetRow = board[baseY + nrow - 1][baseX .. baseX + 4];
+                    targetRow = board[baseY + nrow - 1][baseX .. baseX + pw];
                     copyRow(&shape[nrow], targetRow);
                 }
 

@@ -47,6 +47,7 @@ pub fn main() !void {
     var state = try tetris.GameState.Init(alloc, 26, 30);
     state.debug = true;
     defer state.deinit(alloc);
+    defer out.writeAll("\x1Bc") catch {};
 
     const in = posix.STDIN_FILENO;
     const origTerm = try posix.tcgetattr(in);
@@ -65,7 +66,7 @@ pub fn main() !void {
 
     state.currentPiece = tetris.nextShape(&state);
 
-    const targetFPS = 60;
+    const targetFPS = 50;
     const targetFrameTime = std.time.ns_per_s / targetFPS;
     var frameCount: usize = 0;
 
@@ -84,15 +85,12 @@ pub fn main() !void {
 
         if (frameDuration < targetFrameTime) {
             const sleep = targetFrameTime - frameDuration;
-            // std.debug.print("sleeping for: {d}\n", .{sleep});
-            // std.debug.print("FPS: {}\n", .{frameCount});
             std.Thread.sleep(sleep);
         }
 
         frameCount += 1;
         const now = timer.read();
         if (now - lastTick >= std.time.ns_per_s) {
-            // std.debug.print("FPS: {}\n", .{frameCount});
             state.currentFps = frameCount;
             frameCount = 0;
             lastTick = now;
