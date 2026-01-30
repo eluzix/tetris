@@ -1,6 +1,7 @@
 //! By convention, root.zig is the root source file when making a library.
 const std = @import("std");
 const fs = std.fs;
+const Io = std.Io;
 
 const ESC = "\x1B";
 const CSI = ESC ++ "[";
@@ -211,7 +212,7 @@ fn copyRow(src: []u8, dest: []u8) void {
     }
 }
 
-pub fn updateAndDrawGame(f: fs.File, state: *GameState) !void {
+pub fn updateAndDrawGame(out: *Io.Writer, state: *GameState) !void {
     copyBoardToRenderBuffer(state);
 
     var shape = translatePiceForRender(state.currentPiece);
@@ -266,11 +267,13 @@ pub fn updateAndDrawGame(f: fs.File, state: *GameState) !void {
         state.currentPiece = nextShape(state);
     }
     // todo uzix - should we use a writer ?
-    render(f, state.renderbuffer);
+    render(out, state.renderbuffer) catch {};
 
     if (state.debug) {
-        renderDebugData(f, state);
+        renderDebugData(out, state) catch {};
     }
+
+    out.flush() catch {};
 }
 
 fn translatePiceForRender(piece: Piece) [PIECE_SIZE][PIECE_SIZE]u8 {
@@ -289,33 +292,22 @@ fn translatePiceForRender(piece: Piece) [PIECE_SIZE][PIECE_SIZE]u8 {
     return ret;
 }
 
-fn writeOrWait(f: fs.File, bytes: []const u8) void {
-    f.writeAll(bytes) catch |e| {
-        if (e == error.WouldBlock) {
-            std.Thread.sleep(50);
-            f.writeAll(bytes) catch {};
-        }
-    };
-}
-
-fn render(f: fs.File, board: [][]u8) void {
-    writeOrWait(f, CSI ++ "2J " ++ ESC ++ "H");
-    writeOrWait(f, CSI ++ "?25l\r");
-    writeOrWait(f, CSI ++ "5;1H");
+fn render(out: *Io.Writer, board: [][]u8) !void {
+    try out.writeAll(CSI ++ "5;1H");
     for (board) |*row| {
-        writeOrWait(f, row.*);
-        writeOrWait(f, "\n\r");
+        try out.writeAll(row.*);
+        try out.writeAll(CSI ++ "K\r\n");
     }
-    // writeOrWait(f, CSI ++ "?25l\r");
 }
 
-fn renderDebugData(f: fs.File, state: *GameState) void {
-    writeOrWait(f, CSI ++ "1;1H");
+fn renderDebugData(out: *Io.Writer, state: *GameState) !void {
+    try out.writeAll(CSI ++ "1;1H");
+
     var buf: [25]u8 = undefined;
-    const out = std.fmt.bufPrint(&buf, "Frame count: {d}\n", .{state.currentFps}) catch {
+    const fmt = std.fmt.bufPrint(&buf, "Frame count: {d}\n", .{state.currentFps}) catch {
         return;
     };
-    writeOrWait(f, out);
+    try out.writeAll(fmt);
 }
 
 test "Rotatation" {

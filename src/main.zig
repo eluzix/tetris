@@ -43,11 +43,25 @@ pub fn main() !void {
     var fba = std.heap.FixedBufferAllocator.init(&memory);
     const alloc = fba.allocator();
 
-    const out = fs.File.stdout();
+    var stdoutBuffer: [4096 * 2]u8 = undefined;
+    var out = fs.File.stdout().writer(&stdoutBuffer);
+    var stdOut = &out.interface;
+
+    try stdOut.writeAll("\x1B[?1049h");
+    try stdOut.writeAll("\x1B[?25l");
+    try stdOut.writeAll("\x1B[2J\x1B[H");
+    try stdOut.flush();
+
+    defer {
+        stdOut.writeAll("\x1B[?25h") catch {}; // show cursor
+        stdOut.writeAll("\x1B[?1049l") catch {}; // restore other screen
+        stdOut.flush() catch {};
+    }
+
     var state = try tetris.GameState.Init(alloc, 26, 30);
     state.debug = true;
     defer state.deinit(alloc);
-    defer out.writeAll("\x1Bc") catch {};
+    // defer out.writeAll("\x1Bc") catch {};
 
     const in = posix.STDIN_FILENO;
     const origTerm = try posix.tcgetattr(in);
@@ -79,7 +93,7 @@ pub fn main() !void {
     while (state.running) {
         const ts = timer.read();
         state.nextKey = readKey(&inputBuf);
-        try tetris.updateAndDrawGame(out, &state);
+        try tetris.updateAndDrawGame(stdOut, &state);
         const te = timer.read();
         const frameDuration = te - ts;
 
