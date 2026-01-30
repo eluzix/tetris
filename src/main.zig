@@ -80,7 +80,7 @@ pub fn main() !void {
 
     state.currentPiece = tetris.nextShape(&state);
 
-    const targetFPS = 50;
+    const targetFPS = 60;
     const targetFrameTime = std.time.ns_per_s / targetFPS;
     var frameCount: usize = 0;
 

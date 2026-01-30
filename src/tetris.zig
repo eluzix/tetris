@@ -302,13 +302,8 @@ fn render(out: *Io.Writer, board: [][]u8) !void {
 }
 
 fn renderDebugData(out: *Io.Writer, state: *GameState) !void {
-    try out.writeAll(CSI ++ "1;1H");
-
-    var buf: [25]u8 = undefined;
-    const fmt = std.fmt.bufPrint(&buf, "Frame count: {d}\n", .{state.currentFps}) catch {
-        return;
-    };
-    try out.writeAll(fmt);
+    try out.writeAll(CSI ++ "2;2H");
+    try out.print("Frame count: {d}\n", .{state.currentFps});
 }
 
 test "Rotatation" {
